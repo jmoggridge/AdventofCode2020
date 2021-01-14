@@ -84,9 +84,6 @@ jolts <- data.frame(jolt = c(0, joltages, max(joltages) + 3)) %>%
   mutate(step = jolt - lag(jolt))
 
 # count consecutive 1 jolt steps that can omitted to compute combinations
-combinations <- c(1,2,4,7,13)
-names(combinations) <- as.character(c(1,2,3,4,5))
-
 runs <- c()
 consec <- 0
 for (step in jolts$step[-1]) {
@@ -99,6 +96,11 @@ for (step in jolts$step[-1]) {
   }
 }
 
+# create a lookup table for number of combinations per 1-run length
+combinations <- c(1,2,4,7,13)
+names(combinations) <- as.character(c(1,2,3,4,5))
+
+# convert run lengths to combinations and take product -> solution
 runs <- as.character(runs[runs>0])
 sol <- prod(combinations[runs], na.rm = T)
 as.character(sol)
