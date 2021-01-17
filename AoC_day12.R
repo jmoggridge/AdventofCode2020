@@ -16,11 +16,11 @@
 #
 # For example:
 #
-F10
-N3
-F7
-R90
-F11
+# F10
+# N3
+# F7
+# R90
+# F11
 # These instructions would be handled as follows:
 #
 # F10 would move the ship 10 units east (because the ship starts by facing east) to east 10, north 0.
@@ -95,21 +95,36 @@ part1(dirs)
 # After these operations, the ship's Manhattan distance from its starting position is 214 + 72 = 286.
 #
 # Figure out where the navigation instructions actually lead. What is the Manhattan distance between that location and the ship's starting position?
-#
-# F <- move ship to waypoint x times
-Forward <- function(waypoint, postion, scalar){
-  return(position + scalar * waypoint)
+
+# Proceed to waypoint 'F' function
+Forward <- function(waypoint, position, distance){
+  # F <- move ship to waypoint x times, return position
+  return(position + distance * waypoint)
 }
 
-# LR <- rotate waypoint relative to ship
+# Rotations: 'L', 'R' functions
+r90 <- function(waypoint){ # rotate cw 90
+  return(c(waypoint[2], -waypoint[1]))
+}
+l90 <- function(waypoint){ # rotate ccw 90
+  return(c(-waypoint[2], waypoint[1]))
+}
 LR <- function(waypoint, dir, dist){
-  if (dist == 180) return(-1 * waypoint)
-  else if (dir == 'R') return(c(waypoint[2], -waypoint[1]))
-  else if (dir == 'L') return(c(-waypoint[2], waypoint[1]))
+  # L, R <- rotate waypoint relative to ship
+  if (dist == 90) { # perform rotation 90 on waypt
+    if (dir == 'R') return(r90(waypoint))
+    else if (dir == 'L') return(l90(waypoint))
+  }
+  else if (dist == 270){ # if 270, do 90 in opposite direction
+    if (dir=='L') return(r90(waypoint))
+    else if (dir=='R') return(l90(waypoint))
+  }
+  # if 180, take negative of vector
+  else if (dist == 180) return(-1 * waypoint)
 }
 
-# NSEW <- moves waypoint x distance in direction
 NSEW <- function(waypoint, dir, dist) {
+  # NSEW <- moves waypoint x distance in direction
   if (dir %in% c('E', 'W')) {
     waypoint[1] <-
       ifelse(dir == 'E', waypoint[1] + dist, waypoint[1] - dist)
@@ -120,39 +135,35 @@ NSEW <- function(waypoint, dir, dist) {
   return(waypoint)
 }
 
+move_ship <- function(instructions){
+  
+  # use (x,y) coordinates [(+E,-W), (+N,-S)]
+  waypoint <- c(10, 1)
+  position <- c(0, 0)
+  
+  for (i in seq_along(dirs$direction)){
+    action <- instructions[i, 1]
+    dist <- instructions[i, 2]
+    if (action == 'F') {
+      position <- Forward(waypoint, position, dist)
+    } else if (action %in% c('L','R')) {
+      waypoint <- LR(waypoint, action, dist)
+    } else if (action %in% c('E', 'W', 'N', 'S')) {
+      waypoint <- NSEW(waypoint, action, dist)
+    }
+  }
+  return(position)
+}
 ###
 
-# use (x,y) coordinates [(+E,-W), (+N,-S)]
-waypoint <- c(10, 1)
-# start = (0, 0)
-position <- c(0, 0)
-cat('waypoint: ')
-cat(as.character(waypoint), '\n')
-cat('position: ')
-cat(as.character(position), '\n')
-
-for (i in seq_along(dirs$direction)){
-  dir <- dirs[i,1]
-  dist <- dirs[i,2]
-  print(i)
-  print(paste(dir, dist))
-  if (dir == 'F') position <- Forward(waypoint, position, dist)
-  else if (dir %in% c('L','R')) waypoint <- LR(waypoint, dir, dist)
-  else waypoint <- NSEW(waypoint, dir, dist)
-  cat('waypoint: ')
-  cat(as.character(waypoint), '\n')
-  cat('position: ')
-  cat(as.character(position), '\n')
-  
-}
-
-abspos <- abs(position)
-sum(abspos)
-
-
-# dir <- 'L'
-# dist <- 90
-# waypoint <- c(1,1)
-# waypoint <- LR(waypoint, dir, dist)
-# waypoint
-# 
+dir <- readLines('input12.txt')
+# split action + distance from instructions
+instructions <- data.frame(
+  direction = substring(dir, 1, 1),
+  distance = as.numeric(gsub(dir, pattern = '^[A-Z]', replacement = ''))
+  )
+# move ship based on instructions
+position <- move_ship(instructions)
+manhattan_dist <- sum(abs(position))
+'solution 2'
+manhattan_dist
