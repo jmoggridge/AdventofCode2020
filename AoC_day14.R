@@ -42,6 +42,12 @@ library(readr)
 rm(list = ls())
 ##
 
+parse_program <- function(file){
+  # parse program line arguments
+  lines <- readLines(file)
+  lines <- lapply(lines, function(line) unlist(strsplit(line, ' = ')))
+}
+
 # converts number to binary vector
 num_to_binary <- function(x){
   bits <- sapply(seq(from = 35,to = 0), function(x) 2**x)
@@ -76,8 +82,7 @@ apply_mask <- function(mask, binr){
 }
 
 # interpreter: updates mask or stores value in mem after applying mask
-store_value <- function(line){
-  instruction <- unlist(strsplit(line, ' = '))
+interpreter <- function(instruction){
   if (instruction[1] == 'mask') {
     .GlobalEnv$mask <- parse_mask(instruction[2])
     return()
@@ -90,14 +95,136 @@ store_value <- function(line){
   }
 }
 
+# init memory list and read program
+mem <- list()
+lines <- parse_program('input14.txt')
+# iterate over lines (maskings and inputs) -> update mem list
+x <- sapply(lines, interpreter)
+# sum all values stored in list
+solution <- print(sum(unlist(mem)), digits = 14)
 
+
+###
+# 
+# --- Part Two ---
+#   For some reason, the sea port's computer system still can't communicate with your ferry's docking program. It must be using version 2 of the decoder chip!
+# 
+# A version 2 decoder chip doesn't modify the values being written at all. Instead, it acts as a memory address decoder. Immediately before a value is written to memory, each bit in the bitmask modifies the corresponding bit of the destination memory address in the following way:
+#   
+# If the bitmask bit is 0, the corresponding memory address bit is unchanged.
+# If the bitmask bit is 1, the corresponding memory address bit is overwritten with 1.
+# If the bitmask bit is X, the corresponding memory address bit is floating.
+# A floating bit is not connected to anything and instead fluctuates unpredictably. In practice, this means the floating bits will take on all possible values, potentially causing many memory addresses to be written all at once!
+
+  
+# For example, consider the following program:
+
+# mask = 000000000000000000000000000000X1001X
+# mem[42] = 100
+# mask = 00000000000000000000000000000000X0XX
+# mem[26] = 1
+
+# When this program goes to write to memory address 42, it first applies the bitmask:
+
+# address: 000000000000000000000000000000101010  (decimal 42)
+# mask:    000000000000000000000000000000X1001X
+# result:  000000000000000000000000000000X1101X
+
+# After applying the mask, four bits are overwritten, three of which are different, and two of which are floating. Floating bits take on every possible combination of values; with two floating bits, four actual memory addresses are written:
+
+# 000000000000000000000000000000011010  (decimal 26)
+# 000000000000000000000000000000011011  (decimal 27)
+# 000000000000000000000000000000111010  (decimal 58)
+# 000000000000000000000000000000111011  (decimal 59)
+
+# Next, the program is about to write to memory address 26 with a different bitmask
+
+# address: 000000000000000000000000000000011010  (decimal 26)
+# mask:    00000000000000000000000000000000X0XX
+# result:  00000000000000000000000000000001X0XX
+
+# This results in an address with three floating bits, causing writes to eight memory addresses:
+
+# 000000000000000000000000000000010000  (decimal 16)
+# 000000000000000000000000000000010001  (decimal 17)
+# 000000000000000000000000000000010010  (decimal 18)
+# 000000000000000000000000000000010011  (decimal 19)
+# 000000000000000000000000000000011000  (decimal 24)
+# 000000000000000000000000000000011001  (decimal 25)
+# 000000000000000000000000000000011010  (decimal 26)
+# 000000000000000000000000000000011011  (decimal 27)
+
+# The entire 36-bit address space still begins initialized to the value 0 at every address, and you still need the sum of all values left in memory at the end of the program. In this example, the sum is 208.
+# 
+# Execute the initialization program using an emulator for a version 2 decoder chip. What is the sum of all values left in memory after it completes?
+
+rm(list = ls()[!ls() %in% c('lines', 'parse_program', 'parse_mask',
+                            'num_to_binary')])
+
+
+
+# converts binary vector to number
+bin_to_num <- function(binr){
+  bits <- sapply(seq(from = 35,to = 0), function(x) 2**x)
+  return(crossprod(bits, as.numeric(binr))[1])
+}
+# return mask as vector
+parse_mask <- function(mask){
+  mask <- unlist(strsplit(mask, ''))
+  return(mask)
+}
+# adds digit to each location in masked list
+add_digit <- function(masking, digit){
+  masking[length(masking)+1] <- digit
+  return(masking)
+}
+
+# apply the masking to a location to get a vector of bitmasked locations
+apply_mask2 <- function(address, mask){
+  binary <- num_to_binary(address)
+  masked <- list(c())
+  # map masking to binary address to get a list of addresses
+  for (i in seq_along(binary)){
+    if (mask[i] == '0'){
+      masked <- lapply(masked, add_digit, binary[i])
+    } else if (mask[i] == '1'){
+      masked <- lapply(masked, add_digit, '1')
+    } else if (mask[i] == 'X'){
+      # add 0 and 1 to each thread; doubles size of list
+      masked0 <- lapply(masked, add_digit, '0')
+      masked1 <- lapply(masked, add_digit, '1')
+      masked <- c(masked0, masked1)
+    }
+  }
+  # convert to number
+  masked <- lapply(masked, as.numeric)
+  masked <- sapply(masked, bin_to_num)
+  # return to char for mem[masked address] indexing
+  masked <- sapply(masked, as.character)
+  return(masked)
+}
+
+interpreter2 <- function(instruction){
+  if (instruction[1] == 'mask') {
+    # update mask pattern
+    .GlobalEnv$mask <- parse_mask(instruction[2])
+    return()
+  }
+  else {
+    instruction <- parse_number(instruction)
+    address <- instruction[1]
+    value <- instruction[2]
+    # map address to bitmasked addresses
+    masked_locations <- apply_mask2(address, mask)
+    # store value at all decoded addresses
+    .GlobalEnv$mem[masked_locations] <- value
+    return()
+  }
+}
 
 ##
 mem <- list()
-lines <- readLines('input14.txt')
-# iterate over maskings and inputs -> update mem list
-x <- sapply(lines, store_value)
-# sum all values stored in list
-solution <- print(sum(unlist(mem)), digits = 14)
-rm(x)
-
+lines <- parse_program('input14.txt')
+x <- sapply(lines, interpreter2)
+print(sum(unlist(mem)), digits = 13)
+rm(mem, lines, x)
