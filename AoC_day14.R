@@ -222,7 +222,7 @@ interpreter2 <- function(instruction){
   }
 }
 
-##
+# get solution
 mem <- list()
 lines <- parse_program('input14.txt')
 x <- sapply(lines, interpreter2)
